@@ -44,6 +44,7 @@ class IDEXBarrier extends MultiIOModule {
     val instruction_in            = Input(new Instruction)
     val immediate_in              = Input(SInt(32.W))
     val stall                     = Input(Bool())
+    val flush                     = Input(Bool())
 
     // Outputs for EX stage
     val PC_out                     = Output(UInt(32.W))
@@ -85,6 +86,17 @@ class IDEXBarrier extends MultiIOModule {
   io.readData2_out := readData2_reg
   io.instruction_out := instruction_reg
   io.immediate_out := immediate_reg
+
+    when (io.flush && io.PC_in =/= 0.U) {
+    // Insert bubble on flush
+    // decodedSignals_reg := 0.U.asTypeOf(new DecodedSignals)
+    // decodedSignals_reg.branchType := branchType.DC
+    // instruction_reg := Instruction.NOP
+
+    io.decodedSignals_out := 0.U.asTypeOf(new DecodedSignals)
+    io.decodedSignals_out.branchType := branchType.DC
+    io.instruction_out := Instruction.NOP
+  }
 }
 
 class EXMEMBarrier extends MultiIOModule {
@@ -96,6 +108,7 @@ class EXMEMBarrier extends MultiIOModule {
     val readData2_in              = Input(UInt(32.W))
     val instruction_in            = Input(new Instruction)
     val stall                     = Input(Bool())
+    val flush_in                  = Input(Bool())
 
     // Outputs for MEM stage
     val PC_out                     = Output(UInt(32.W))
@@ -103,6 +116,7 @@ class EXMEMBarrier extends MultiIOModule {
     val aluResult_out              = Output(UInt(32.W))
     val readData2_out              = Output(UInt(32.W))
     val instruction_out            = Output(new Instruction)
+    val flush_out                  = Output(Bool())
   })
 
   // All values have to be stored in registers
@@ -111,6 +125,7 @@ class EXMEMBarrier extends MultiIOModule {
   val aluResult_reg = RegInit(UInt(32.W), 0.U)
   val readData2_reg = RegInit(UInt(32.W), 0.U)
   val instruction_reg = RegInit(0.U.asTypeOf(new Instruction))
+  val flush_reg = RegInit(false.B)
 
   // Connect all inputs with the registers
   when (!io.stall) {
@@ -119,6 +134,7 @@ class EXMEMBarrier extends MultiIOModule {
     aluResult_reg := io.aluResult_in
     readData2_reg := io.readData2_in
     instruction_reg := io.instruction_in
+    flush_reg := io.flush_in
   } .otherwise {
     // Insert bubble on stall
     PC_reg := 0.U
@@ -126,6 +142,7 @@ class EXMEMBarrier extends MultiIOModule {
     aluResult_reg := 0.U
     readData2_reg := 0.U
     instruction_reg := Instruction.NOP
+    flush_reg := false.B
   }
 
   // Connect all registers with the outputs
@@ -134,6 +151,7 @@ class EXMEMBarrier extends MultiIOModule {
   io.aluResult_out := aluResult_reg
   io.readData2_out := readData2_reg
   io.instruction_out := instruction_reg
+  io.flush_out := flush_reg
 }
 
 class MEMWBBarrier extends MultiIOModule {

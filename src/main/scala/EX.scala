@@ -47,10 +47,6 @@ class Execute extends MultiIOModule {
   io.PC_out := pc_calculator.io.PC_out
   io.decodedSignals_out := io.decodedSignals_in
   io.branchTaken := alu.io.branchTaken
-
-  when (io.branchTaken) {
-    // printf(p"BRANCH TAKEN --- EX: PC=0x${Hexadecimal(io.PC)}, branch taken to 0x${Hexadecimal(pc_calculator.io.PC_out)}\n")
-  }
 }
 
 class ALU extends MultiIOModule {

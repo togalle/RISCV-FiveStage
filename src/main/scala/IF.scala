@@ -17,6 +17,7 @@ class InstructionFetch extends MultiIOModule {
       val controlSignals = Input(new ControlSignals)
       val PC_in = Input(UInt(32.W))
       val stall = Input(Bool())
+      val flush = Input(Bool())
 
       val PC = Output(UInt())
       val instruction = Output(new Instruction)
@@ -40,12 +41,19 @@ class InstructionFetch extends MultiIOModule {
 
   val instruction = Wire(new Instruction)
   instruction := IMEM.io.instruction.asTypeOf(new Instruction)
+  
   val lastInstr = RegInit(0.U.asTypeOf(new Instruction))
   val laggedStall = RegInit(Bool(), false.B)
   laggedStall := io.stall
 
-  // When not stalling, update the last valid instruction
-  when (!laggedStall) {
+  val flush_reg = RegInit(false.B)
+  flush_reg := io.flush
+
+  // When flush is asserted, output NOP on next cycle
+  when (io.flush || flush_reg) {
+    io.instruction := Instruction.NOP
+    lastInstr := Instruction.NOP
+  } .elsewhen (!laggedStall) {
     io.instruction := instruction
     lastInstr := instruction
   } .otherwise {

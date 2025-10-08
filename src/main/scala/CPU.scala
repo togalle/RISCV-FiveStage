@@ -55,6 +55,7 @@ class CPU extends MultiIOModule {
 
   // IF/ID
   IF.io.stall                 := FU.io.stall
+  IF.io.flush                 := EXMEMBarrier.flush_out
   IFIDBarrier.PC_in           := IF.io.PC
   IFIDBarrier.instruction_in  := IF.io.instruction
   IFIDBarrier.stall := FU.io.stall
@@ -69,6 +70,7 @@ class CPU extends MultiIOModule {
   IDEXBarrier.instruction_in            := ID.io.instruction_out
   IDEXBarrier.immediate_in              := ID.io.immediate_out
   IDEXBarrier.stall                     := FU.io.stall
+  IDEXBarrier.flush                     := EXMEMBarrier.flush_out
 
   // Forwarding Unit
   FU.io.IR_EX               := IDEXBarrier.instruction_out
@@ -107,6 +109,7 @@ class CPU extends MultiIOModule {
   EXMEMBarrier.readData2_in              := EX.io.readData2_out
   EXMEMBarrier.instruction_in            := IDEXBarrier.instruction_out
   EXMEMBarrier.stall                     := FU.io.stall
+  EXMEMBarrier.flush_in                  := EX.io.branchTaken
 
   MEM.io.decodedSignals_in  := EXMEMBarrier.decodedSignals_out
   MEM.io.aluResult_in       := EXMEMBarrier.aluResult_out
