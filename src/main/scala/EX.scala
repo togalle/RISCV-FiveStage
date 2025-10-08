@@ -46,7 +46,7 @@ class Execute extends MultiIOModule {
   io.readData2_out := io.readData2
   io.PC_out := pc_calculator.io.PC_out
   io.decodedSignals_out := io.decodedSignals_in
-  io.branchTaken := alu.io.branchTaken
+  io.branchTaken := alu.io.branchTaken && (io.decodedSignals_in.controlSignals.branch || io.decodedSignals_in.controlSignals.jump)
 }
 
 class ALU extends MultiIOModule {
