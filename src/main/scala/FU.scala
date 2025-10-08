@@ -42,11 +42,11 @@ class ForwardingUnit extends MultiIOModule {
     io.aluOp1 := Mux(io.EX_decodedSignals.op1Select === Op1Select.PC, io.PC, io.rs1)
   }
   // If the input register address is the destination register in WB, but not in MEM, select the writeback signal.
-  .elsewhen (io.IR_EX.registerRs1 === io.IR_WB.registerRd && io.IR_EX.registerRs1 =/= io.IR_MEM.registerRd) {
+  .elsewhen (io.IR_EX.registerRs1 === io.IR_WB.registerRd && io.IR_EX.registerRs1 =/= io.IR_MEM.registerRd && io.IR_WB.registerRd =/= 0.U) {
     io.aluOp1 := io.res_WB
   }
   // If the input register address is the destination register for the operation currently in MEM, select that operation.
-  .elsewhen (io.IR_EX.registerRs1 === io.IR_MEM.registerRd) {
+  .elsewhen (io.IR_EX.registerRs1 === io.IR_MEM.registerRd && io.IR_MEM.registerRd =/= 0.U) {
     io.aluOp1 := io.aluRes_MEM
   }
 
@@ -55,9 +55,9 @@ class ForwardingUnit extends MultiIOModule {
     io.aluOp2 := io.imm.asUInt
   } .elsewhen (io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd && io.IR_EX.registerRs2 =/= io.IR_WB.registerRd) {
     io.aluOp2 := Mux(io.EX_decodedSignals.op2Select === Op2Select.imm, io.imm.asUInt, io.rs2)
-  } .elsewhen (io.IR_EX.registerRs2 === io.IR_WB.registerRd && io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd) {
+  } .elsewhen (io.IR_EX.registerRs2 === io.IR_WB.registerRd && io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd && io.IR_WB.registerRd =/= 0.U) {
     io.aluOp2 := io.res_WB
-  } .elsewhen (io.IR_EX.registerRs2 === io.IR_MEM.registerRd) {
+  } .elsewhen (io.IR_EX.registerRs2 === io.IR_MEM.registerRd && io.IR_MEM.registerRd =/= 0.U) {
     io.aluOp2 := io.aluRes_MEM
   }
 
