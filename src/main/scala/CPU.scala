@@ -72,6 +72,14 @@ class CPU extends MultiIOModule {
   IDEXBarrier.stall                     := FU.io.stall
   IDEXBarrier.flush                     := EXMEMBarrier.flush_out
 
+  IDEXBarrier.WB_Rd                     := MEMWBBarrier.instruction_out.registerRd
+  IDEXBarrier.WB_RegWrite               := MEMWBBarrier.decodedSignals_out.controlSignals.regWrite
+  IDEXBarrier.WB_Data                   := Mux(
+    MEMWBBarrier.decodedSignals_out.controlSignals.memRead,
+    MEMWBBarrier.DMEMData_out,
+    MEMWBBarrier.aluResult_out
+  )
+
   // Forwarding Unit
   FU.io.IR_EX               := IDEXBarrier.instruction_out
   FU.io.IR_MEM              := EXMEMBarrier.instruction_out
@@ -83,7 +91,7 @@ class CPU extends MultiIOModule {
   FU.io.imm                 := IDEXBarrier.immediate_out
   FU.io.aluRes_MEM          := EXMEMBarrier.aluResult_out
   FU.io.readData2_in        := IDEXBarrier.readData2_out
-  FU.io.MEM_isLoad          := EXMEMBarrier.decodedSignals_out.controlSignals.memRead || EXMEMBarrier.decodedSignals_out.controlSignals.memWrite
+  FU.io.MEM_isLoad          := EXMEMBarrier.decodedSignals_out.controlSignals.memRead
   FU.io.res_WB              := Mux(
     MEMWBBarrier.decodedSignals_out.controlSignals.memRead,
     MEMWBBarrier.DMEMData_out,

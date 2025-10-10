@@ -49,4 +49,8 @@ class MemoryFetch() extends MultiIOModule {
   io.decodedSignals_out := io.decodedSignals_in
   io.aluResult_out      := io.aluResult_in
   io.instruction_out    := io.instruction_in
+
+  // when reading from memory, print the address and data
+      // printf(p"MEM: address 0x${Hexadecimal(io.aluResult_in)} data 0x${Hexadecimal(DMEM.io.dataOut)}\n")
+
 }

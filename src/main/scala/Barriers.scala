@@ -46,6 +46,10 @@ class IDEXBarrier extends MultiIOModule {
     val stall                     = Input(Bool())
     val flush                     = Input(Bool())
 
+    val WB_Rd                     = Input(UInt(5.W))
+    val WB_RegWrite               = Input(Bool())
+    val WB_Data                   = Input(UInt(32.W))
+
     // Outputs for EX stage
     val PC_out                     = Output(UInt(32.W))
     val decodedSignals_out         = Output(new DecodedSignals)
@@ -77,6 +81,16 @@ class IDEXBarrier extends MultiIOModule {
     readData2_reg := readData2_reg
     instruction_reg := instruction_reg
     immediate_reg := immediate_reg
+
+    // TODO: check if instruction reg should be used or io.instruction_in
+
+    // If there is a stall, check if the Rd should be updated from the WB stage
+    when (io.WB_Rd === io.instruction_in.registerRs1 && io.WB_RegWrite) {
+      readData1_reg := io.WB_Data
+    }
+    when (io.WB_Rd === io.instruction_in.registerRs2 && io.WB_RegWrite) {
+      readData2_reg := io.WB_Data
+    }
   }
 
   // Connect all registers with the outputs
@@ -139,6 +153,7 @@ class EXMEMBarrier extends MultiIOModule {
     // Insert bubble on stall
     PC_reg := 0.U
     decodedSignals_reg := 0.U.asTypeOf(new DecodedSignals)
+    decodedSignals_reg.branchType := branchType.DC
     aluResult_reg := 0.U
     readData2_reg := 0.U
     instruction_reg := Instruction.NOP
