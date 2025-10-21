@@ -17,27 +17,27 @@ import PrintUtils._
 import LogParser._
 
 case class TestOptions(
-  printIfSuccessful  : Boolean,
-  printErrors        : Boolean,
-  printParsedProgram : Boolean,
-  printVMtrace       : Boolean,
-  printVMfinal       : Boolean,
-  printMergedTrace   : Boolean,
-  printBinary        : Boolean,
-  nopPadded          : Boolean,
-  breakPoints        : List[Int], // Not implemented
-  testName           : String,
-  maxSteps           : Int
+    printIfSuccessful: Boolean,
+    printErrors: Boolean,
+    printParsedProgram: Boolean,
+    printVMtrace: Boolean,
+    printVMfinal: Boolean,
+    printMergedTrace: Boolean,
+    printBinary: Boolean,
+    nopPadded: Boolean,
+    breakPoints: List[Int], // Not implemented
+    testName: String,
+    maxSteps: Int
 )
 
 case class TestResult(
-  regError   : Option[String],
-  memError   : Option[String],
-  program    : String,
-  vmTrace    : String,
-  vmFinal    : String,
-  sideBySide : String,
-  binary     : String
+    regError: Option[String],
+    memError: Option[String],
+    program: String,
+    vmTrace: String,
+    vmFinal: String,
+    sideBySide: String,
+    binary: String
 )
 
 object TestRunner {
@@ -45,23 +45,28 @@ object TestRunner {
   def run(testOptions: TestOptions): Boolean = {
 
     val testResults = for {
-      lines                           <- fileUtils.readTest(testOptions)
-      program                         <- FiveStage.Parser.parseProgram(lines, testOptions)
-      (binary, (trace, finalVM))      <- program.validate(testOptions.maxSteps).map(x => (x._1, x._2.run))
+      lines   <- fileUtils.readTest(testOptions)
+      program <- FiveStage.Parser.parseProgram(lines, testOptions)
+      (binary, (trace, finalVM)) <- program
+        .validate(testOptions.maxSteps)
+        .map(x => (x._1, x._2.run))
       (termitationCause, chiselTrace) <- ChiselTestRunner(
         binary.toList.sortBy(_._1.value).map(_._2),
         program.settings,
         finalVM.pc,
         testOptions.maxSteps,
-        testOptions.testName)
+        testOptions.testName
+      )
     } yield {
-      val traces = mergeTraces(trace, chiselTrace).map(x => printMergedTraces((x), program))
+      val traces = mergeTraces(trace, chiselTrace).map(x =>
+        printMergedTraces((x), program)
+      )
 
       val programString = printProgram(program)
       val vmTraceString = printVMtrace(trace, program)
-      val vmFinalState = finalVM.regs.show
-      val traceString = printLogSideBySide(trace, chiselTrace, program)
-      val binaryString = printBinary(binary)
+      val vmFinalState  = finalVM.regs.show
+      val traceString   = printLogSideBySide(trace, chiselTrace, program)
+      val binaryString  = printBinary(binary)
 
       val regError = compareRegs(trace, chiselTrace)
       val memError = compareMem(trace, chiselTrace)
@@ -73,39 +78,53 @@ object TestRunner {
         vmTraceString,
         vmFinalState.toString,
         traceString,
-        binaryString)
+        binaryString
+      )
     }
 
-    testResults.left.foreach{ error =>
+    testResults.left.foreach { error =>
       say(s"Test was unable to run due to error: $error")
     }
 
-    testResults.map{ testResults =>
-      val successful = List(testResults.regError, testResults.memError).flatten.headOption.map(_ => false).getOrElse(true)
-      if(successful)
-        sayGreen(s"${testOptions.testName} succesful")
-      else
-        sayRed(s"${testOptions.testName} failed")
+    testResults
+      .map { testResults =>
+        val successful = List(
+          testResults.regError,
+          testResults.memError
+        ).flatten.headOption.map(_ => false).getOrElse(true)
+        if (successful)
+          sayGreen(s"${testOptions.testName} succesful")
+        else
+          sayRed(s"${testOptions.testName} failed")
 
-      if(testOptions.printIfSuccessful && successful){
-        if(testOptions.printParsedProgram) say(testResults.program)
-        if(testOptions.printVMtrace)       say(testResults.vmTrace)
-        if(testOptions.printVMfinal)       say(testResults.vmFinal)
-        if(testOptions.printMergedTrace)   say(testResults.sideBySide)
-        if(testOptions.printBinary)        say(testResults.binary)
-      }
-      else{
-        if(testOptions.printErrors){
-          say(testResults.regError.map(_.show.toString).getOrElse("no reg errors"))
-          say(testResults.memError.map(_.show.toString).getOrElse("no mem errors"))
+        if (testOptions.printIfSuccessful && successful) {
+          if (testOptions.printParsedProgram) say(testResults.program)
+          if (testOptions.printVMtrace) say(testResults.vmTrace)
+          if (testOptions.printVMfinal) say(testResults.vmFinal)
+          if (testOptions.printMergedTrace) say(testResults.sideBySide)
+          if (testOptions.printBinary) say(testResults.binary)
+        } else {
+          if (testOptions.printErrors) {
+            say(
+              testResults.regError
+                .map(_.show.toString)
+                .getOrElse("no reg errors")
+            )
+            say(
+              testResults.memError
+                .map(_.show.toString)
+                .getOrElse("no mem errors")
+            )
+          }
+          if (testOptions.printParsedProgram) say(testResults.program)
+          if (testOptions.printVMtrace) say(testResults.vmTrace)
+          if (testOptions.printVMfinal) say(testResults.vmFinal)
+          if (testOptions.printMergedTrace) say(testResults.sideBySide)
+          if (testOptions.printBinary) say(testResults.binary)
         }
-        if(testOptions.printParsedProgram) say(testResults.program)
-        if(testOptions.printVMtrace)       say(testResults.vmTrace)
-        if(testOptions.printVMfinal)       say(testResults.vmFinal)
-        if(testOptions.printMergedTrace)   say(testResults.sideBySide)
-        if(testOptions.printBinary)        say(testResults.binary)
+        successful
       }
-      successful
-    }.toOption.getOrElse(false)
+      .toOption
+      .getOrElse(false)
   }
 }

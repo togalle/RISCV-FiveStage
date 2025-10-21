@@ -39,15 +39,19 @@ resolvers ++= Seq(
 
 // Provide a managed dependency on X if -DXVersion="" is supplied on the command line.
 val defaultVersions = Map(
-  "chisel3" -> "3.1.+",
+  "chisel3"          -> "3.1.+",
   "chisel-iotesters" -> "1.2.+"
+)
+
+libraryDependencies ++= (Seq("chisel3", "chisel-iotesters").map { dep: String =>
+  "edu.berkeley.cs" %% dep % sys.props.getOrElse(
+    dep + "Version",
+    defaultVersions(dep)
   )
+})
 
-libraryDependencies ++= (Seq("chisel3","chisel-iotesters").map {
-  dep: String => "edu.berkeley.cs" %% dep % sys.props.getOrElse(dep + "Version", defaultVersions(dep)) })
-
-val fs2Version = "0.10.3"
-val catsVersion = "1.1.0"
+val fs2Version        = "0.10.3"
+val catsVersion       = "1.1.0"
 val catsEffectVersion = "0.10"
 libraryDependencies ++= Dependencies.backendDeps.value
 scalacOptions ++= scalacOptionsVersion(scalaVersion.value)
@@ -59,10 +63,11 @@ javacOptions ++= javacOptionsVersion(scalaVersion.value)
 // testOptions in Test += Tests.Argument("-oF")
 
 resolvers += Resolver.sonatypeRepo("releases")
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
-addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4")
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
-
+addCompilerPlugin("org.spire-math" %% "kind-projector"     % "0.9.7")
+addCompilerPlugin("com.olegpy"     %% "better-monadic-for" % "0.2.4")
+addCompilerPlugin(
+  "org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full
+)
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-eS")
 

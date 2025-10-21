@@ -7,19 +7,18 @@ import fileUtils.say
 import Data._
 import PrintUtils._
 
-private class ChiselTestRunner (
-  instructions    : List[Int],
-  settings        : List[TestSetting],
-  c               : Tile,
-  d               : PeekPokeTester[Tile],
-  terminalAddress : Addr,
-  maxSteps        : Int) {
+private class ChiselTestRunner(
+    instructions: List[Int],
+    settings: List[TestSetting],
+    c: Tile,
+    d: PeekPokeTester[Tile],
+    terminalAddress: Addr,
+    maxSteps: Int
+) {
 
-
-  /**
-    * Currently unused as it is quite nontrivial to figure out whether read data is actually used.
-    * Still, with the necessary scaffolding these can be correlated with reg writes to figure out
-    * if they are valid or not.
+  /** Currently unused as it is quite nontrivial to figure out whether read data
+    * is actually used. Still, with the necessary scaffolding these can be
+    * correlated with reg writes to figure out if they are valid or not.
     */
   case class ChiselMemReadEvent(pcAddr: Addr, memAddr: Addr, word: Int)
 
@@ -52,7 +51,7 @@ private class ChiselTestRunner (
     }
 
     def setupRegs(regs: List[(Reg, Int)]) = {
-      regs.foreach{ case(reg, word) =>
+      regs.foreach { case (reg, word) =>
         d.poke(d.dut.io.setup, 1)
         d.poke(d.dut.io.regsWriteEnable, 1)
         d.poke(d.dut.io.regsWriteData, BigInt(word))
@@ -79,43 +78,47 @@ private class ChiselTestRunner (
     }
 
     def setupImem(instructions: List[Int]) = {
-      (0 until instructions.length).foreach{ ii =>
-        d.poke(d.dut.io.IMEMAddress, ii*4)
+      (0 until instructions.length).foreach { ii =>
+        d.poke(d.dut.io.IMEMAddress, ii * 4)
         d.poke(d.dut.io.IMEMWriteData, instructions(ii).toInt)
         d.step(1)
       }
-      d.poke(d.dut.io.IMEMAddress, 4092) // Ensures that we don't overwrite an instruction. Bandaid for lack of IMEM.writeEnable
+      d.poke(
+        d.dut.io.IMEMAddress,
+        4092
+      ) // Ensures that we don't overwrite an instruction. Bandaid for lack of IMEM.writeEnable
       d.poke(d.dut.io.IMEMWriteData, 0)
     }
   }
 
-
   private def getPC               = Addr(d.peek(d.dut.io.currentPC).toInt)
-  private def getDMemWriteAddress = Addr(d.peek(d.dut.io.memDeviceWriteAddress).toInt)
-  private def getRegWriteAddress  = Reg(d.peek(d.dut.io.regsDeviceWriteAddress).toInt)
+  private def getDMemWriteAddress = Addr(
+    d.peek(d.dut.io.memDeviceWriteAddress).toInt
+  )
+  private def getRegWriteAddress = Reg(
+    d.peek(d.dut.io.regsDeviceWriteAddress).toInt
+  )
 
   private def getRegUpdate: Option[ChiselRegEvent] = {
-    if(
-      (d.peek(d.dut.io.regsDeviceWriteEnable)  == 1) &&
+    if (
+      (d.peek(d.dut.io.regsDeviceWriteEnable) == 1) &&
       (getRegWriteAddress.value != 0)
-    ){
+    ) {
       val regWriteAddress = getRegWriteAddress
       val regWriteData    = d.peek(d.dut.io.regsDeviceWriteData).toInt
-      val regUpdate = ChiselRegEvent(getPC, regWriteAddress, regWriteData)
+      val regUpdate       = ChiselRegEvent(getPC, regWriteAddress, regWriteData)
       Some(regUpdate)
-    }
-    else
+    } else
       None
   }
 
   private def getMemWrite: Option[ChiselMemWriteEvent] = {
-    if(d.peek(d.dut.io.memDeviceWriteEnable) == 1) {
+    if (d.peek(d.dut.io.memDeviceWriteEnable) == 1) {
       val memWriteAddress = getDMemWriteAddress
       val memWriteData    = d.peek(d.dut.io.memDeviceWriteData).toInt
       val memUpdate = ChiselMemWriteEvent(getPC, memWriteAddress, memWriteData)
       Some(memUpdate)
-    }
-    else
+    } else
       None
   }
 
@@ -126,15 +129,18 @@ private class ChiselTestRunner (
     state
   }
 
-
-  private def go(log: List[CircuitTrace], timeOut: Int): (Option[String], List[CircuitTrace]) = {
-    if(timeOut == 0){
-      (Some("Chisel tester timed out before reaching termination address"), log.reverse)
-    }
-    else if(getPC == terminalAddress){
+  private def go(
+      log: List[CircuitTrace],
+      timeOut: Int
+  ): (Option[String], List[CircuitTrace]) = {
+    if (timeOut == 0) {
+      (
+        Some("Chisel tester timed out before reaching termination address"),
+        log.reverse
+      )
+    } else if (getPC == terminalAddress) {
       (None, (flush ::: log).reverse)
-    }
-    else {
+    } else {
       val step = stepOne
       go(step :: log, timeOut - 1)
     }
@@ -144,8 +150,7 @@ private class ChiselTestRunner (
   private def flush: List[CircuitTrace] =
     (0 to 5).map(_ => stepOne).reverse.toList
 
-  /**
-    * Run the entire shebang
+  /** Run the entire shebang
     */
   def run: (Option[String], List[CircuitTrace]) = {
     setup
@@ -156,38 +161,51 @@ private class ChiselTestRunner (
 object ChiselTestRunner {
 
   def apply(
-    binary          : List[Int],
-    settings        : List[TestSetting],
-    terminalAddress : Addr,
-    maxSteps        : Int,
-    testName        : String): Either[String, (Option[String], List[CircuitTrace])] = {
+      binary: List[Int],
+      settings: List[TestSetting],
+      terminalAddress: Addr,
+      maxSteps: Int,
+      testName: String
+  ): Either[String, (Option[String], List[CircuitTrace])] = {
 
-    var sideEffectExtravaganza: Option[(Option[String], List[CircuitTrace])] = None
+    var sideEffectExtravaganza: Option[(Option[String], List[CircuitTrace])] =
+      None
 
-    val error: Either[String, Boolean] = scala.util.Try {
-      chisel3.iotesters.Driver.execute(Array(
-                                         "--generate-vcd-output", "on",
-                                         "--backend-name", "treadle",
-                                         "--target-dir", "waveforms",
-                                         "--top-name", testName
-                                       ), () => new Tile) { c =>
-        new PeekPokeTester(c) {
-          val testRunner = new ChiselTestRunner(
-            binary,
-            settings,
-            c,
-            this,
-            terminalAddress,
-            maxSteps
-          )
+    val error: Either[String, Boolean] = scala.util
+      .Try {
+        chisel3.iotesters.Driver.execute(
+          Array(
+            "--generate-vcd-output",
+            "on",
+            "--backend-name",
+            "treadle",
+            "--target-dir",
+            "waveforms",
+            "--top-name",
+            testName
+          ),
+          () => new Tile
+        ) { c =>
+          new PeekPokeTester(c) {
+            val testRunner = new ChiselTestRunner(
+              binary,
+              settings,
+              c,
+              this,
+              terminalAddress,
+              maxSteps
+            )
 
-          val log = testRunner.run
-          sideEffectExtravaganza = Some(log)
+            val log = testRunner.run
+            sideEffectExtravaganza = Some(log)
+          }
         }
       }
-    }.toEither.left.map{printChiselError}
+      .toEither
+      .left
+      .map { printChiselError }
 
-    error.flatMap{ e =>
+    error.flatMap { e =>
       sideEffectExtravaganza.toRight("Unknown test failure, please let me know")
     }
   }

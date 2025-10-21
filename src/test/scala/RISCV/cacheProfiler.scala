@@ -18,78 +18,81 @@ import PrintUtils._
 import LogParser._
 
 object CacheProfiler {
-  
+
   def profileCache(testOptions: TestOptions): Boolean = {
 
     val testResults = for {
-      lines                           <- fileUtils.readTest(testOptions)
-      program                         <- FiveStage.Parser.parseProgram(lines, testOptions)
-      (binary, (trace, finalVM))      <- program.validate(testOptions.maxSteps).map(x => (x._1, x._2.run))
+      lines   <- fileUtils.readTest(testOptions)
+      program <- FiveStage.Parser.parseProgram(lines, testOptions)
+      (binary, (trace, finalVM)) <- program
+        .validate(testOptions.maxSteps)
+        .map(x => (x._1, x._2.run))
     } yield {
 
       import TestUtils._
 
       sealed trait MemoryEvent
       case class Write(addr: Int) extends MemoryEvent
-      case class Read(addr: Int) extends MemoryEvent
+      case class Read(addr: Int)  extends MemoryEvent
 
-      val events = trace.flatMap(_.event).collect{
+      val events = trace.flatMap(_.event).collect {
         case MemWrite(addr, _) => Write(addr.value)
-        case MemRead(addr, _) => Read(addr.value)
+        case MemRead(addr, _)  => Read(addr.value)
       }
 
-
-      class CacheProfiler(setCount: Int, setSize: Int, blockSize: Int){
+      class CacheProfiler(setCount: Int, setSize: Int, blockSize: Int) {
 
         // If we set counter to 0 we risk evicting the first allocated block.
-        var counter = 1
-        var misses = 0
+        var counter    = 1
+        var misses     = 0
         var mostRecent = 0
-        var wasMiss = false
+        var wasMiss    = false
 
-        implicit class AddrOps(i: Int){
+        implicit class AddrOps(i: Int) {
           val blockOffsetBits = blockSize.log2
-          val lineBits = setSize.log2
+          val lineBits        = setSize.log2
 
           def lineIdx: Int = {
             i.bits(2 + blockOffsetBits + lineBits - 1, 2 + blockOffsetBits)
           }
         }
 
-
-        case class CacheLine(tag: Int, lastUsed: Int){
-          def matches(addr: Int): Boolean = List.fill(blockSize)(tag)
+        case class CacheLine(tag: Int, lastUsed: Int) {
+          def matches(addr: Int): Boolean = List
+            .fill(blockSize)(tag)
             .zipWithIndex
-            .map{ case(btag, idx) => btag + idx*4 }
+            .map { case (btag, idx) => btag + idx * 4 }
             .map(_ == addr)
             .foldLeft(false)(_ || _)
 
-          def renderContent(addr: Int): String = (addr == mostRecent, wasMiss) match {
-            case (true, true)  => Console.RED + addr.hs + Console.RESET
-            case (true, false) => Console.GREEN + addr.hs + Console.RESET
-            case _ => addr.hs
-          }
+          def renderContent(addr: Int): String =
+            (addr == mostRecent, wasMiss) match {
+              case (true, true)  => Console.RED + addr.hs + Console.RESET
+              case (true, false) => Console.GREEN + addr.hs + Console.RESET
+              case _             => addr.hs
+            }
 
           def render: String = {
-            val blockContents = List.fill(blockSize)(tag)
+            val blockContents = List
+              .fill(blockSize)(tag)
               .zipWithIndex
-              .map{ case(btag, idx) => renderContent(btag + idx*4) }
+              .map { case (btag, idx) => renderContent(btag + idx * 4) }
               .mkString("Contents: || ", " | ", " |")
 
             s"Base: ${tag.hs} LRU: $lastUsed\t" + blockContents
           }
         }
         object CacheLine {
-          def truncateTag(addr: Int) = addr - (addr % (blockSize*4))
+          def truncateTag(addr: Int) = addr - (addr % (blockSize * 4))
         }
 
-
-        case class CacheSet(blocks: Array[CacheLine]){
-          def lineIdx(addr: Int): Int = addr.lineIdx
-          def contains(addr: Int): Boolean = blocks.map(_.matches(addr)).foldLeft(false)(_ || _)
+        case class CacheSet(blocks: Array[CacheLine]) {
+          def lineIdx(addr: Int): Int      = addr.lineIdx
+          def contains(addr: Int): Boolean =
+            blocks.map(_.matches(addr)).foldLeft(false)(_ || _)
 
           def updateLRU(addr: Int): Unit = {
-            val idx = lineIdx(addr)
+            val idx  = lineIdx(addr)
             val next = blocks(idx).copy(lastUsed = counter)
             blocks(idx) = next
           }
@@ -99,28 +102,25 @@ object CacheProfiler {
           }
         }
 
-
-        case class Cache(sets: Array[CacheSet]){
+        case class Cache(sets: Array[CacheSet]) {
 
           /** returns the index of set if hit */
-          def checkHit(addr: Int): Option[Int] = sets
-            .zipWithIndex
-            .map{ case(set, idx) => Option.when(set.contains(addr))(idx) }
-            .flatten.headOption
-
+          def checkHit(addr: Int): Option[Int] = sets.zipWithIndex
+            .map { case (set, idx) => Option.when(set.contains(addr))(idx) }
+            .flatten
+            .headOption
 
           /** Updates the LRU counter */
-          def updateLRU(addr: Int, setIdx: Int): Unit = sets(setIdx).updateLRU(addr)
-
+          def updateLRU(addr: Int, setIdx: Int): Unit =
+            sets(setIdx).updateLRU(addr)
 
           /** Gets set with least recently used */
           def getLRU(addr: Int): Int = sets
-            .map( set => set.blocks(set.lineIdx(addr)).lastUsed)
+            .map(set => set.blocks(set.lineIdx(addr)).lastUsed)
             .zipWithIndex
             .sortBy(_._1)
             .map(_._2)
             .head
-
 
           /** Entry point */
           def handleAccess(addr: Int): Unit = {
@@ -136,12 +136,14 @@ object CacheProfiler {
               }
 
               case None => {
-                val set = sets(getLRU(addr))
+                val set     = sets(getLRU(addr))
                 val nextTag = CacheLine.truncateTag(addr)
-                set.blocks(set.lineIdx(addr)) = set.blocks(set.lineIdx(addr)).copy(
-                  tag = nextTag,
-                  lastUsed = counter
-                )
+                set.blocks(set.lineIdx(addr)) = set
+                  .blocks(set.lineIdx(addr))
+                  .copy(
+                    tag = nextTag,
+                    lastUsed = counter
+                  )
                 misses += 1
 
                 wasMiss = true
@@ -158,26 +160,30 @@ object CacheProfiler {
         }
 
         object Cache {
-          def init: Cache = Cache(Array.fill(setCount)(
-            CacheSet(Array.fill(setSize)(CacheLine(57005, 0))))
+          def init: Cache = Cache(
+            Array.fill(setCount)(
+              CacheSet(Array.fill(setSize)(CacheLine(57005, 0)))
+            )
           )
         }
       }
 
-      for{
-        sets <- List(2, 4, 8)
+      for {
+        sets      <- List(2, 4, 8)
         blockSize <- List(4, 8)
-        lines <- List(2, 4, 8)
+        lines     <- List(2, 4, 8)
       } yield {
 
-        val myTest = new CacheProfiler(sets, lines, blockSize)
+        val myTest  = new CacheProfiler(sets, lines, blockSize)
         val myCache = myTest.Cache.init
-        events.foreach{
+        events.foreach {
           case Write(addr) => myCache.handleAccess(addr)
-          case Read(addr) => myCache.handleAccess(addr)
+          case Read(addr)  => myCache.handleAccess(addr)
         }
 
-        say(s"sets: $sets, lines: $lines, blockSize: $blockSize yields ${myTest.misses} misses")
+        say(
+          s"sets: $sets, lines: $lines, blockSize: $blockSize yields ${myTest.misses} misses"
+        )
       }
 
       // val myTest = new CacheProfiler(2, 4, 4)

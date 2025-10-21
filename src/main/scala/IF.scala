@@ -12,37 +12,39 @@ class InstructionFetch extends MultiIOModule {
     }
   )
 
-  val io = IO(
-    new Bundle {
-      val controlSignals = Input(new ControlSignals)
-      val PC_in = Input(UInt(32.W))
-      val stall = Input(Bool())
-      val flush = Input(Bool())
+  val io = IO(new Bundle {
+    val controlSignals = Input(new ControlSignals)
+    val PC_in          = Input(UInt(32.W))
+    val stall          = Input(Bool())
+    val flush          = Input(Bool())
 
-      val PC = Output(UInt())
-      val instruction = Output(new Instruction)
-    })
+    val PC          = Output(UInt())
+    val instruction = Output(new Instruction)
+  })
 
   val IMEM = Module(new IMEM)
   val PC   = RegInit(UInt(32.W), 0.U)
 
-  /**
-    * Setup. You should not change this code
+  /** Setup. You should not change this code
     */
   IMEM.testHarness.setupSignals := testHarness.IMEMsetup
-  testHarness.PC := IMEM.testHarness.requestedAddress
+  testHarness.PC                := IMEM.testHarness.requestedAddress
 
-  when (!io.stall) {
-    PC := Mux(io.controlSignals.jump || io.controlSignals.branch, io.PC_in, PC + 4.U)
-  } .otherwise {
+  when(!io.stall) {
+    PC := Mux(
+      io.controlSignals.jump || io.controlSignals.branch,
+      io.PC_in,
+      PC + 4.U
+    )
+  }.otherwise {
     PC := PC
   }
   io.PC := PC
 
   val instruction = Wire(new Instruction)
   instruction := IMEM.io.instruction.asTypeOf(new Instruction)
-  
-  val lastInstr = RegInit(0.U.asTypeOf(new Instruction))
+
+  val lastInstr   = RegInit(0.U.asTypeOf(new Instruction))
   val laggedStall = RegInit(Bool(), false.B)
   laggedStall := io.stall
 
@@ -50,22 +52,21 @@ class InstructionFetch extends MultiIOModule {
   flush_reg := io.flush
 
   // When flush is asserted, output NOP on next cycle
-  when (io.flush || flush_reg) {
+  when(io.flush || flush_reg) {
     io.instruction := Instruction.NOP
-    lastInstr := Instruction.NOP
-  } .elsewhen (!laggedStall) {
+    lastInstr      := Instruction.NOP
+  }.elsewhen(!laggedStall) {
     io.instruction := instruction
-    lastInstr := instruction
-  } .otherwise {
+    lastInstr      := instruction
+  }.otherwise {
     io.instruction := lastInstr
   }
   IMEM.io.instructionAddress := PC
 
-  /**
-    * Setup. You should not change this code.
+  /** Setup. You should not change this code.
     */
   when(testHarness.IMEMsetup.setup) {
-    PC := 0.U
+    PC          := 0.U
     instruction := Instruction.NOP
   }
 }

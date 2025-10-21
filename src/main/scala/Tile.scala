@@ -5,40 +5,37 @@ import chisel3.util._
 import chisel3.core.Input
 import chisel3.iotesters.PeekPokeTester
 
-
-/**
-  * The top level module. You do not have to change anything here, 
-  * however you are free to route out signals as you see fit for debugging.
+/** The top level module. You do not have to change anything here, however you
+  * are free to route out signals as you see fit for debugging.
   */
-class Tile() extends Module{
+class Tile() extends Module {
 
-  val io = IO(
-    new Bundle {
-      val DMEMWriteData          = Input(UInt(32.W))
-      val DMEMAddress            = Input(UInt(32.W))
-      val DMEMWriteEnable        = Input(Bool())
-      val DMEMReadData           = Output(UInt(32.W))
+  val io = IO(new Bundle {
+    val DMEMWriteData   = Input(UInt(32.W))
+    val DMEMAddress     = Input(UInt(32.W))
+    val DMEMWriteEnable = Input(Bool())
+    val DMEMReadData    = Output(UInt(32.W))
 
-      val regsWriteData          = Input(UInt(32.W))
-      val regsAddress            = Input(UInt(5.W))
-      val regsWriteEnable        = Input(Bool())
-      val regsReadData           = Output(UInt(32.W))
+    val regsWriteData   = Input(UInt(32.W))
+    val regsAddress     = Input(UInt(5.W))
+    val regsWriteEnable = Input(Bool())
+    val regsReadData    = Output(UInt(32.W))
 
-      val regsDeviceWriteEnable  = Output(Bool())
-      val regsDeviceWriteData    = Output(UInt(32.W))
-      val regsDeviceWriteAddress = Output(UInt(5.W))
+    val regsDeviceWriteEnable  = Output(Bool())
+    val regsDeviceWriteData    = Output(UInt(32.W))
+    val regsDeviceWriteAddress = Output(UInt(5.W))
 
-      val memDeviceWriteEnable   = Output(Bool())
-      val memDeviceWriteData     = Output(UInt(32.W))
-      val memDeviceWriteAddress  = Output(UInt(32.W))
+    val memDeviceWriteEnable  = Output(Bool())
+    val memDeviceWriteData    = Output(UInt(32.W))
+    val memDeviceWriteAddress = Output(UInt(32.W))
 
-      val IMEMWriteData          = Input(UInt(32.W))
-      val IMEMAddress            = Input(UInt(32.W))
+    val IMEMWriteData = Input(UInt(32.W))
+    val IMEMAddress   = Input(UInt(32.W))
 
-      val setup                  = Input(Bool())
+    val setup = Input(Bool())
 
-      val currentPC              = Output(UInt())
-    })
+    val currentPC = Output(UInt())
+  })
 
   val CPU = Module(new CPU).testHarness
 
@@ -64,12 +61,9 @@ class Tile() extends Module{
   io.regsDeviceWriteEnable  := CPU.regUpdates.writeEnable
   io.regsDeviceWriteData    := CPU.regUpdates.writeData
 
-  io.memDeviceWriteAddress  := CPU.memUpdates.writeAddress
-  io.memDeviceWriteEnable   := CPU.memUpdates.writeEnable
-  io.memDeviceWriteData     := CPU.memUpdates.writeData
+  io.memDeviceWriteAddress := CPU.memUpdates.writeAddress
+  io.memDeviceWriteEnable  := CPU.memUpdates.writeEnable
+  io.memDeviceWriteData    := CPU.memUpdates.writeData
 
   io.currentPC := CPU.currentPC
 }
-
-
-

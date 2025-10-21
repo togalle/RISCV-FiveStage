@@ -2,11 +2,11 @@ package FiveStage
 import chisel3._
 import chisel3.experimental.MultiIOModule
 
-/**
-  * This module is finished and does not need to be modified to complete your fivestage.
-  * 
-  * When setup is enabled data is written to the instruction memory.
-  * In normal operation this memory is write only (no self modifying code)
+/** This module is finished and does not need to be modified to complete your
+  * fivestage.
+  *
+  * When setup is enabled data is written to the instruction memory. In normal
+  * operation this memory is write only (no self modifying code)
   */
 class IMEM() extends MultiIOModule {
 
@@ -18,16 +18,13 @@ class IMEM() extends MultiIOModule {
     }
   )
 
-  
-  val io = IO(
-    new Bundle {
-      val instructionAddress = Input(UInt(32.W))
-      val instruction        = Output(UInt(32.W))
-    })
+  val io = IO(new Bundle {
+    val instructionAddress = Input(UInt(32.W))
+    val instruction        = Output(UInt(32.W))
+  })
 
-
-  /**
-    SyncReadMem will output the value of the address signal set in the previous cycle.
+  /** SyncReadMem will output the value of the address signal set in the
+    * previous cycle.
     */
   val instructions = SyncReadMem(4096, UInt(32.W))
 
@@ -37,14 +34,14 @@ class IMEM() extends MultiIOModule {
 
   testHarness.requestedAddress := io.instructionAddress
 
-  when(testHarness.setupSignals.setup){
+  when(testHarness.setupSignals.setup) {
     addressSource := testHarness.setupSignals.address
   }.otherwise {
     addressSource := io.instructionAddress
   }
 
   // For loading data
-  when(testHarness.setupSignals.setup){
+  when(testHarness.setupSignals.setup) {
     instructions(addressSource) := testHarness.setupSignals.instruction
   }
 

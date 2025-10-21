@@ -1,11 +1,10 @@
 package FiveStage
 import chisel3._
 import chisel3.core.Wire
-import chisel3.util.{ BitPat, Cat }
+import chisel3.util.{BitPat, Cat}
 
-  /**
-    * Don't touch these
-    */
+/** Don't touch these
+  */
 class SetupSignals extends Bundle {
   val IMEMsignals     = new IMEMsetupSignals
   val DMEMsignals     = new DMEMsetupSignals
@@ -19,14 +18,14 @@ class IMEMsetupSignals extends Bundle {
 }
 
 class DMEMsetupSignals extends Bundle {
-  val setup           = Bool()
+  val setup       = Bool()
   val writeEnable = Bool()
   val dataIn      = UInt(32.W)
   val dataAddress = UInt(32.W)
 }
 
 class RegisterSetupSignals extends Bundle {
-  val setup = Bool()
+  val setup        = Bool()
   val readAddress  = UInt(5.W)
   val writeEnable  = Bool()
   val writeAddress = UInt(5.W)
