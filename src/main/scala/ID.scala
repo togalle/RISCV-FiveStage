@@ -32,13 +32,11 @@ class InstructionDecode extends MultiIOModule {
       val readData2_out              = Output(UInt(32.W))
       val instruction_out            = Output(new Instruction)
       val immediate_out              = Output(SInt(32.W))
-      val debugFlag = Output(Bool()) 
     }
   )
 
   val registers = Module(new Registers)
   val decoder   = Module(new Decoder).io
-  io.debugFlag := false.B
 
   /**
     * Setup. You should not change this code
@@ -88,10 +86,5 @@ class InstructionDecode extends MultiIOModule {
         (io.WB_instruction_in.registerRd === io.instruction_in.registerRs2)) {
     // Forward to readData2_out
     io.readData2_out := io.WB_aluResult_in
-  }
-
-  when (io.WB_aluResult_in === BigInt("EB1CEB1C", 16).U && io.WB_decodedSignals_in.controlSignals.regWrite) {
-    io.debugFlag := true.B
-    printf("EB1CEB1C detected in ID stage %b\n", io.debugFlag)
   }
 }

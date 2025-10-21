@@ -90,6 +90,7 @@ class CPU extends MultiIOModule {
   FU.io.rs2                 := IDEXBarrier.readData2_out
   FU.io.imm                 := IDEXBarrier.immediate_out
   FU.io.aluRes_MEM          := EXMEMBarrier.aluResult_out
+  FU.io.readData1_in        := IDEXBarrier.readData1_out
   FU.io.readData2_in        := IDEXBarrier.readData2_out
   FU.io.MEM_isLoad          := EXMEMBarrier.decodedSignals_out.controlSignals.memRead
   FU.io.res_WB              := Mux(
@@ -102,10 +103,10 @@ class CPU extends MultiIOModule {
 
   EX.io.PC                      := IDEXBarrier.PC_out
   EX.io.decodedSignals_in       := IDEXBarrier.decodedSignals_out
-  EX.io.readData1               := IDEXBarrier.readData1_out
   EX.io.immediate               := IDEXBarrier.immediate_out
   EX.io.aluOp1                  := FU.io.aluOp1
   EX.io.aluOp2                  := FU.io.aluOp2
+  EX.io.readData1               := FU.io.readData1_out
   EX.io.readData2               := FU.io.readData2_out
 
   // Load-use hazard detection
