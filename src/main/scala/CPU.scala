@@ -97,6 +97,8 @@ class CPU extends MultiIOModule {
     MEMWBBarrier.DMEMData_out,
     MEMWBBarrier.aluResult_out
   )
+  FU.io.decodedSignals_MEM  := EXMEMBarrier.decodedSignals_out
+  FU.io.decodedSignals_WB   := MEMWBBarrier.decodedSignals_out
 
   EX.io.PC                      := IDEXBarrier.PC_out
   EX.io.decodedSignals_in       := IDEXBarrier.decodedSignals_out
@@ -115,9 +117,9 @@ class CPU extends MultiIOModule {
   EXMEMBarrier.decodedSignals_in         := EX.io.decodedSignals_out
   EXMEMBarrier.aluResult_in              := EX.io.aluResult
   EXMEMBarrier.readData2_in              := EX.io.readData2_out
+  EXMEMBarrier.flush_in                  := EX.io.branchTaken
   EXMEMBarrier.instruction_in            := IDEXBarrier.instruction_out
   EXMEMBarrier.stall                     := FU.io.stall
-  EXMEMBarrier.flush_in                  := EX.io.branchTaken
 
   MEM.io.decodedSignals_in  := EXMEMBarrier.decodedSignals_out
   MEM.io.aluResult_in       := EXMEMBarrier.aluResult_out

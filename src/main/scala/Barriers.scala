@@ -26,8 +26,8 @@ class IFIDBarrier extends MultiIOModule {
   
   // Instruction passes through without delay (since IMEM already adds delay)
   val instruction_reg = RegInit(0.U.asTypeOf(new Instruction))
-  instruction_reg := io.instruction_in
   when (!io.stall) {
+    instruction_reg := io.instruction_in
     io.instruction_out := io.instruction_in
   } .otherwise {
     io.instruction_out := instruction_reg
@@ -85,10 +85,14 @@ class IDEXBarrier extends MultiIOModule {
     // TODO: check if instruction reg should be used or io.instruction_in
 
     // If there is a stall, check if the Rd should be updated from the WB stage
-    when (io.WB_Rd === io.instruction_in.registerRs1 && io.WB_RegWrite) {
+    when (io.WB_Rd === instruction_reg.registerRs1 &&
+          io.WB_RegWrite &&
+          io.WB_Rd =/= 0.U) {
       readData1_reg := io.WB_Data
     }
-    when (io.WB_Rd === io.instruction_in.registerRs2 && io.WB_RegWrite) {
+    when (io.WB_Rd === instruction_reg.registerRs2 &&
+          io.WB_RegWrite &&
+          io.WB_Rd =/= 0.U) {
       readData2_reg := io.WB_Data
     }
   }
@@ -154,6 +158,9 @@ class EXMEMBarrier extends MultiIOModule {
     PC_reg := 0.U
     decodedSignals_reg := 0.U.asTypeOf(new DecodedSignals)
     decodedSignals_reg.branchType := branchType.DC
+    decodedSignals_reg.controlSignals := ControlSignals.nop
+    // set the branchtaken to false when stalling
+    
     aluResult_reg := 0.U
     readData2_reg := 0.U
     instruction_reg := Instruction.NOP

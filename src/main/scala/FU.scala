@@ -10,7 +10,9 @@ class ForwardingUnit extends MultiIOModule {
     // Control signals for multiplexer
     val IR_EX             = Input(new Instruction)
     val IR_MEM            = Input(new Instruction)
+    val decodedSignals_MEM = Input(new DecodedSignals)
     val IR_WB             = Input(new Instruction)
+    val decodedSignals_WB = Input(new DecodedSignals)
     val EX_decodedSignals = Input(new DecodedSignals)
 
     // Inputs for multiplexer
@@ -31,47 +33,61 @@ class ForwardingUnit extends MultiIOModule {
     val stall            = Output(Bool())
   })
 
-  io.aluOp1 := 0.U
-  io.aluOp2 := 0.U
+  io.aluOp1 := Mux(io.EX_decodedSignals.op1Select === Op1Select.PC, io.PC, io.rs1)
+  io.aluOp2 := Mux(io.EX_decodedSignals.op2Select === Op2Select.imm, io.imm.asUInt, io.rs2)
   io.stall  := false.B
   io.readData2_out := io.readData2_in
 
   // ALU operand 1
-  // If the input register address is not the destination in either MEM or WB, select the register.
-  when (io.IR_EX.registerRs1 =/= io.IR_MEM.registerRd && io.IR_EX.registerRs1 =/= io.IR_WB.registerRd) {
+  when (io.IR_EX.registerRs1 =/= io.IR_MEM.registerRd &&
+        io.IR_EX.registerRs1 =/= io.IR_WB.registerRd) {
     io.aluOp1 := Mux(io.EX_decodedSignals.op1Select === Op1Select.PC, io.PC, io.rs1)
   }
-  // If the input register address is the destination register in WB, but not in MEM, select the writeback signal.
-  .elsewhen (io.IR_EX.registerRs1 === io.IR_WB.registerRd && io.IR_EX.registerRs1 =/= io.IR_MEM.registerRd && io.IR_WB.registerRd =/= 0.U) {
+  .elsewhen (io.IR_EX.registerRs1 === io.IR_WB.registerRd &&
+            io.IR_EX.registerRs1 =/= io.IR_MEM.registerRd &&
+            io.IR_WB.registerRd =/= 0.U &&
+            io.decodedSignals_WB.controlSignals.regWrite) {
     io.aluOp1 := io.res_WB
   }
-  // If the input register address is the destination register for the operation currently in MEM, select that operation.
-  .elsewhen (io.IR_EX.registerRs1 === io.IR_MEM.registerRd && io.IR_MEM.registerRd =/= 0.U) {
+  .elsewhen (io.IR_EX.registerRs1 === io.IR_MEM.registerRd &&
+            io.IR_MEM.registerRd =/= 0.U &&
+            io.decodedSignals_MEM.controlSignals.regWrite) {
     io.aluOp1 := io.aluRes_MEM
   }
 
   // ALU operand 2
   when (io.EX_decodedSignals.op2Select === Op2Select.imm) {
     io.aluOp2 := io.imm.asUInt
-  } .elsewhen (io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd && io.IR_EX.registerRs2 =/= io.IR_WB.registerRd) {
+  } .elsewhen (io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd &&
+              io.IR_EX.registerRs2 =/= io.IR_WB.registerRd) {
     io.aluOp2 := Mux(io.EX_decodedSignals.op2Select === Op2Select.imm, io.imm.asUInt, io.rs2)
-  } .elsewhen (io.IR_EX.registerRs2 === io.IR_WB.registerRd && io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd && io.IR_WB.registerRd =/= 0.U) {
+  } .elsewhen (io.IR_EX.registerRs2 === io.IR_WB.registerRd &&
+              io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd &&
+              io.IR_WB.registerRd =/= 0.U &&
+              io.decodedSignals_WB.controlSignals.regWrite) {
     io.aluOp2 := io.res_WB
-  } .elsewhen (io.IR_EX.registerRs2 === io.IR_MEM.registerRd && io.IR_MEM.registerRd =/= 0.U) {
+  } .elsewhen (io.IR_EX.registerRs2 === io.IR_MEM.registerRd &&
+              io.IR_MEM.registerRd =/= 0.U &&
+              io.decodedSignals_MEM.controlSignals.regWrite) {
     io.aluOp2 := io.aluRes_MEM
   }
 
   val forwardedData2 = Wire(UInt(32.W))
+    forwardedData2 := io.readData2_in
 
   // Apply forwarding logic for store data (similar to aluOp2 logic but specifically for rs2)
-  when (io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd && io.IR_EX.registerRs2 =/= io.IR_WB.registerRd) {
+  when (io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd &&
+        io.IR_EX.registerRs2 =/= io.IR_WB.registerRd) {
     forwardedData2 := io.readData2_in
-  } .elsewhen (io.IR_EX.registerRs2 === io.IR_WB.registerRd && io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd) {
+  } .elsewhen (io.IR_EX.registerRs2 === io.IR_WB.registerRd &&
+              io.IR_EX.registerRs2 =/= io.IR_MEM.registerRd &&
+              io.decodedSignals_WB.controlSignals.regWrite &&
+              io.IR_WB.registerRd =/= 0.U) {
     forwardedData2 := io.res_WB
-  } .elsewhen (io.IR_EX.registerRs2 === io.IR_MEM.registerRd) {
+  } .elsewhen (io.IR_EX.registerRs2 === io.IR_MEM.registerRd &&
+              io.IR_MEM.registerRd =/= 0.U &&
+              io.decodedSignals_MEM.controlSignals.regWrite) {
     forwardedData2 := io.aluRes_MEM
-  } .otherwise {
-    forwardedData2 := io.readData2_in
   }
 
   // Use the forwarded value for store data
@@ -82,5 +98,21 @@ class ForwardingUnit extends MultiIOModule {
     (io.IR_MEM.registerRd === io.IR_EX.registerRs1 || io.IR_MEM.registerRd === io.IR_EX.registerRs2) &&
     io.IR_MEM.registerRd =/= 0.U) {
     io.stall := true.B
+  }
+
+  // when alu op 1 is EB1CEB1C and op 2 is FFFFFFEC, print forwarding unit state
+  when (io.aluOp1 === "hEB1CEB1C".U && io.aluOp2 === "hFFFFFFEC".U) {
+    printf(p"--- Forwarding Unit State ---\n")
+    // print all decoded signals and instruction addresses
+    printf(p"IR_EX: ${io.IR_EX}\n")
+    printf(p"IR_MEM: ${io.IR_MEM}\n")
+    printf(p"IR_WB: ${io.IR_WB}\n")
+    printf(p"decodedSignals_MEM: ${io.decodedSignals_MEM}\n")
+    printf(p"decodedSignals_WB: ${io.decodedSignals_WB}\n")
+    printf(p"EX_decodedSignals: ${io.EX_decodedSignals}\n")
+    // print wb destination register and alu result
+    printf(p"WB registerRd: 0x${Hexadecimal(io.IR_WB.registerRd)}\n")
+    printf(p"WB alu result: 0x${Hexadecimal(io.res_WB)}\n")
+    printf(p"-----------------------------\n")
   }
 }

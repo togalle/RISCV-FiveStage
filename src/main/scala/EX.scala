@@ -20,10 +20,12 @@ class Execute extends MultiIOModule {
     val readData2_out   = Output(UInt(32.W))
     val decodedSignals_out = Output(new DecodedSignals)
     val branchTaken      = Output(Bool())
+    val debugFlag      = Output(Bool())
   })
 
   val alu = Module(new ALU)
   val pc_calculator = Module(new PC_Calculator)
+  io.debugFlag := false.B
 
   val op1 = io.aluOp1
   val op2 = io.aluOp2
@@ -46,6 +48,11 @@ class Execute extends MultiIOModule {
   io.readData2_out := io.readData2
   io.PC_out := pc_calculator.io.PC_out
   io.decodedSignals_out := io.decodedSignals_in
+  // when branchTaken is 0, set control signal out of branch to 0
+  when (!alu.io.branchTaken) {
+    io.decodedSignals_out.controlSignals.branch := false.B
+    io.decodedSignals_out.controlSignals.jump := false.B
+  }
   io.branchTaken := alu.io.branchTaken && (io.decodedSignals_in.controlSignals.branch || io.decodedSignals_in.controlSignals.jump)
 }
 
