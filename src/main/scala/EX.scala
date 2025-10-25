@@ -13,19 +13,29 @@ class Execute extends MultiIOModule {
     val immediate         = Input(SInt(32.W))
     val aluOp1            = Input(UInt(32.W))
     val aluOp2            = Input(UInt(32.W))
+    val BP_prediction     = Input(UInt(32.W))
 
     // Outputs to MEM stage
     val aluResult          = Output(UInt(32.W))
     val PC_out             = Output(UInt(32.W))
+    val source_PC          = Output(UInt(32.W))
     val readData2_out      = Output(UInt(32.W))
     val decodedSignals_out = Output(new DecodedSignals)
     val branchTaken        = Output(Bool())
-    val debugFlag          = Output(Bool())
+    val flush              = Output(Bool())
+    val BP_update          = Output(Bool())
+    val BP_update_PC       = Output(UInt(32.W))
+    val BP_update_target   = Output(UInt(32.W))
   })
 
   val alu           = Module(new ALU)
   val pc_calculator = Module(new PC_Calculator)
-  io.debugFlag := false.B
+  io.source_PC := io.PC
+  io.flush     := false.B
+
+  io.BP_update        := false.B
+  io.BP_update_PC     := 0.U
+  io.BP_update_target := 0.U
 
   val op1 = io.aluOp1
   val op2 = io.aluOp2
@@ -42,6 +52,27 @@ class Execute extends MultiIOModule {
   pc_calculator.io.branchTaken    := alu.io.branchTaken
   pc_calculator.io.controlSignals := io.decodedSignals_in.controlSignals
   pc_calculator.io.readData1      := io.readData1
+
+  when(
+    io.decodedSignals_in.controlSignals.jump || io.decodedSignals_in.controlSignals.branch
+  ) {
+    // Update BP prediction
+    io.BP_update        := true.B
+    io.BP_update_PC     := io.PC
+    io.BP_update_target := Mux(
+      alu.io.branchTaken,
+      pc_calculator.io.PC_out,
+      0.U
+    )
+
+    when(
+      (!alu.io.branchTaken && io.BP_prediction =/= 0.U) ||
+        (alu.io.branchTaken && io.BP_prediction =/= pc_calculator.io.PC_out)
+    ) {
+      // Flush pipeline
+      io.flush := true.B
+    }
+  }
 
   // Outputs
   io.aluResult := Mux(

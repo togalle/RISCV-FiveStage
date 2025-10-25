@@ -13,10 +13,14 @@ class InstructionFetch extends MultiIOModule {
   )
 
   val io = IO(new Bundle {
+    // PC control
     val controlSignals = Input(new ControlSignals)
     val PC_in          = Input(UInt(32.W))
     val stall          = Input(Bool())
     val flush          = Input(Bool())
+
+    // Branch Predictor
+    val prediction = Input(UInt(32.W))
 
     val PC          = Output(UInt())
     val instruction = Output(new Instruction)
@@ -34,10 +38,8 @@ class InstructionFetch extends MultiIOModule {
     PC := Mux(
       io.controlSignals.jump || io.controlSignals.branch,
       io.PC_in,
-      PC + 4.U
+      Mux(io.prediction =/= 0.U, io.prediction, PC + 4.U)
     )
-  }.otherwise {
-    PC := PC
   }
   io.PC := PC
 

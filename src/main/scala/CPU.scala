@@ -24,8 +24,9 @@ class CPU extends MultiIOModule {
   val EXMEMBarrier = Module(new EXMEMBarrier).io
   val MEMWBBarrier = Module(new MEMWBBarrier).io
 
-  val ID  = Module(new InstructionDecode)
   val IF  = Module(new InstructionFetch)
+  val BP  = Module(new BranchPredictor)
+  val ID  = Module(new InstructionDecode)
   val EX  = Module(new Execute)
   val FU  = Module(new ForwardingUnit)
   val MEM = Module(new MemoryFetch)
@@ -49,13 +50,39 @@ class CPU extends MultiIOModule {
   testHarness.currentPC  := IF.testHarness.PC
 
   // IF/ID
-  IF.io.stall                := FU.io.stall
-  IF.io.flush                := EXMEMBarrier.flush_out
+  IF.io.stall          := FU.io.stall
+  IF.io.flush          := EXMEMBarrier.flush_out
+  IF.io.controlSignals := EXMEMBarrier.decodedSignals_out.controlSignals
+  IF.io.PC_in          := EXMEMBarrier.PC_out
+
+  IF.io.prediction := BP.io.prediction
+
+  // BP
+  BP.io.PC := IF.io.PC
+
+  BP.io.update        := EX.io.BP_update
+  BP.io.update_PC     := EX.io.BP_update_PC
+  BP.io.update_target := EX.io.BP_update_target
+
+  BP.io.PC_EX := IDEXBarrier.PC_out
+
   IFIDBarrier.PC_in          := IF.io.PC
   IFIDBarrier.instruction_in := IF.io.instruction
   IFIDBarrier.stall          := FU.io.stall
 
   ID.io.instruction_in := IFIDBarrier.instruction_out
+
+  // Load-use hazard detection
+  ID.io.EX_memRead_in := IDEXBarrier.decodedSignals_out.controlSignals.memRead
+  ID.io.EX_registerRd_in := IDEXBarrier.instruction_out.registerRd
+
+  ID.io.WB_aluResult_in := Mux(
+    MEMWBBarrier.decodedSignals_out.controlSignals.memRead,
+    MEMWBBarrier.DMEMData_out,
+    MEMWBBarrier.aluResult_out
+  )
+  ID.io.WB_decodedSignals_in := MEMWBBarrier.decodedSignals_out
+  ID.io.WB_instruction_in    := MEMWBBarrier.instruction_out
 
   // ID/EX
   IDEXBarrier.PC_in             := IFIDBarrier.PC_out
@@ -103,17 +130,14 @@ class CPU extends MultiIOModule {
   EX.io.aluOp2            := FU.io.aluOp2
   EX.io.readData1         := FU.io.readData1_out
   EX.io.readData2         := FU.io.readData2_out
-
-  // Load-use hazard detection
-  ID.io.EX_memRead_in := IDEXBarrier.decodedSignals_out.controlSignals.memRead
-  ID.io.EX_registerRd_in := IDEXBarrier.instruction_out.registerRd
+  EX.io.BP_prediction     := BP.io.prediction_EX
 
   // EX/MEM
   EXMEMBarrier.PC_in             := EX.io.PC_out
   EXMEMBarrier.decodedSignals_in := EX.io.decodedSignals_out
   EXMEMBarrier.aluResult_in      := EX.io.aluResult
   EXMEMBarrier.readData2_in      := EX.io.readData2_out
-  EXMEMBarrier.flush_in          := EX.io.branchTaken
+  EXMEMBarrier.flush_in          := EX.io.flush
   EXMEMBarrier.instruction_in    := IDEXBarrier.instruction_out
   EXMEMBarrier.stall             := FU.io.stall
 
@@ -121,23 +145,11 @@ class CPU extends MultiIOModule {
   MEM.io.aluResult_in      := EXMEMBarrier.aluResult_out
   MEM.io.readData2_in      := EXMEMBarrier.readData2_out
   MEM.io.instruction_in    := EXMEMBarrier.instruction_out
-  IF.io.PC_in              := EXMEMBarrier.PC_out
 
   // MEM/WB
   MEMWBBarrier.decodedSignals_in := MEM.io.decodedSignals_out
   MEMWBBarrier.aluResult_in      := MEM.io.aluResult_out
   MEMWBBarrier.instruction_in    := MEM.io.instruction_out
   MEMWBBarrier.DMEMData_in       := MEM.io.DMEMData_out
-
-  ID.io.WB_aluResult_in := Mux(
-    MEMWBBarrier.decodedSignals_out.controlSignals.memRead,
-    MEMWBBarrier.DMEMData_out,
-    MEMWBBarrier.aluResult_out
-  )
-  ID.io.WB_decodedSignals_in := MEMWBBarrier.decodedSignals_out
-  ID.io.WB_instruction_in    := MEMWBBarrier.instruction_out
-
-  IF.io.controlSignals := EXMEMBarrier.decodedSignals_out.controlSignals
-  IF.io.PC_in          := EXMEMBarrier.PC_out
 
 }
