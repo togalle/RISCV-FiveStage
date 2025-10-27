@@ -40,6 +40,8 @@ class InstructionFetch extends MultiIOModule {
       io.PC_in,
       Mux(io.prediction =/= 0.U, io.prediction, PC + 4.U)
     )
+  }.otherwise {
+    PC := PC
   }
   io.PC := PC
 

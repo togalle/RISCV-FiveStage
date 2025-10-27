@@ -61,7 +61,7 @@ class CPU extends MultiIOModule {
   BP.io.PC := IF.io.PC
 
   BP.io.update        := EX.io.BP_update
-  BP.io.update_PC     := EX.io.BP_update_PC
+  BP.io.update_PC     := EX.io.BP_update_PC - 4.U
   BP.io.update_target := EX.io.BP_update_target
 
   BP.io.PC_EX := IDEXBarrier.PC_out
@@ -131,6 +131,7 @@ class CPU extends MultiIOModule {
   EX.io.readData1         := FU.io.readData1_out
   EX.io.readData2         := FU.io.readData2_out
   EX.io.BP_prediction     := BP.io.prediction_EX
+  EX.io.stall             := FU.io.stall
 
   // EX/MEM
   EXMEMBarrier.PC_in             := EX.io.PC_out
